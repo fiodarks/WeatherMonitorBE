@@ -16,3 +16,19 @@ def to_weather_entity(domain: WeatherData) -> WeatherEntity:
         wind_speed_10m=domain.wind_speed,
         wind_speed_10m_unit=domain.wind_speed_unit,
     )
+
+def to_weather_data(entity: WeatherEntity) -> WeatherData:
+    return WeatherData(
+        id=str(entity.id),
+        city=entity.city,
+        time=entity.time,
+        temperature=entity.temperature_2m,
+        temperature_unit=entity.temperature_2m_unit,
+        is_day=bool(entity.is_day),
+        rain=entity.rain,
+        rain_unit=entity.rain_unit,
+        surface_pressure=entity.surface_pressure,
+        surface_pressure_unit=entity.surface_pressure_unit,
+        wind_speed=entity.wind_speed_10m,
+        wind_speed_unit=entity.wind_speed_10m_unit,
+    )

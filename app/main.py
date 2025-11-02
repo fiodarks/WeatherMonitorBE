@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.adapters.restapi.weather_controller import router as air_router
 from app.domain.model.config import load_config
-from app.persistance.database import init_db
+from app.persistance.model.weather_entity import init_db
 
 config = load_config()
 

@@ -1,105 +1,59 @@
-from datetime import datetime
-from typing import Optional
-
-from requests import Session
-
+from app.domain.mapper import to_weather_entity, to_weather_data
 from app.domain.model.weather_data import WeatherData
+from app.persistance.model.weather_entity import WeatherEntity
 from app.persistance.repositories.measurement_repository import WeatherMeasurementRepository
 
+from sqlalchemy.orm import Session
+from typing import Optional, List, Tuple
+from datetime import datetime
 
 class SQLMeasurementRepository(WeatherMeasurementRepository):
     def __init__(self, db: Session):
         self.db = db
 
-    def get_chart_data(
-        self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        sort_by: Optional[list[str]] = None,
-    ) -> tuple[list[WeatherData], int]:
-        pass
+    def add(self, measurement: WeatherData) -> WeatherData:
+        db_obj = to_weather_entity(measurement)
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return to_weather_data(db_obj)
 
     def get_by_id(self, weather_id: str) -> Optional[WeatherData]:
-        pass
+        record = self.db.query(WeatherEntity).filter_by(id=weather_id).first()
+        return to_weather_data(record) if record else None
 
-    def add(self, measurement: WeatherData) -> WeatherData:
-        pass
+    def get_chart_data(
+            self,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            sort_by: Optional[List[str]] = None,
+    ) -> Tuple[List[WeatherData], int]:
+
+        query = self.db.query(WeatherEntity)
+
+        if start_date:
+            query = query.filter(WeatherEntity.time >= start_date)
+        if end_date:
+            query = query.filter(WeatherEntity.time <= end_date)
+
+        # Sorting
+        if sort_by:
+            for item in reversed(sort_by):
+                field, _, direction = item.partition(":")
+                reverse = direction.lower() == "desc"
+
+                column = getattr(WeatherEntity, field, None)
+                if column is not None:
+                    query = query.order_by(column.desc() if reverse else column.asc())
+
+        results = query.all()
+        total = query.count()
+        return [to_weather_data(r) for r in results], total
 
     def measurement_exists(self, city: str, timestamp: datetime) -> bool:
-        pass
-    # def get_chart_data(
-    #     self,
-    #     start_date: Optional[datetime] = None,
-    #     end_date: Optional[datetime] = None,
-    #     parameters: Optional[List[str]] = None,
-    #     sort_by: Optional[List[str]] = None,
-    # ):
-    #     query = self.db.query(MeasurementDB)
-    #
-    #     if start_date and end_date:
-    #         query = query.filter(MeasurementDB.timestamp.between(start_date, end_date))
-    #     elif start_date:
-    #         query = query.filter(MeasurementDB.timestamp >= start_date)
-    #     elif end_date:
-    #         query = query.filter(MeasurementDB.timestamp <= end_date)
-    #
-    #     # Apply parameter filter
-    #     if parameters:
-    #         query = query.filter(MeasurementDB.parameter.in_(parameters))
-    #
-    #     # Sorting logic
-    #     if sort_by:
-    #         sort_columns = []
-    #         for sort_item in sort_by:
-    #             try:
-    #                 field, direction = sort_item.split(":")
-    #                 column = getattr(MeasurementDB, field, None)
-    #                 if column is not None:
-    #                     sort_columns.append(asc(column) if direction.lower() == "asc" else desc(column))
-    #             except ValueError:
-    #                 # Skip invalid format
-    #                 continue
-    #
-    #         if sort_columns:
-    #             query = query.order_by(*sort_columns)
-    #     else:
-    #         query = query.order_by(MeasurementDB.timestamp.asc())
-    #
-    #     db_items = query.all()
-    #     return [to_domain(i) for i in db_items]
-    #
-    #
-    # def get_by_id(self, measurement_id: str) -> Optional[MeasurementEntity]:
-    #     db_item = self.db.query(MeasurementDB).filter(MeasurementDB.id == measurement_id).first()
-    #     if db_item:
-    #         return to_entity(db_item)
-    #     return None
-    #
-    # def add(self, measurement: MeasurementEntity) -> MeasurementEntity:
-    #     if not measurement.id:
-    #         measurement.id = str(uuid.uuid4())
-    #
-    #     db_item = MeasurementDB(
-    #         id=measurement.id,
-    #         city=measurement.city,
-    #         parameter=measurement.parameter,
-    #         value=measurement.value,
-    #         unit=measurement.unit,
-    #         timestamp=measurement.timestamp
-    #     )
-    #     self.db.add(db_item)
-    #     self.db.commit()
-    #     self.db.refresh(db_item)
-    #     return to_entity(db_item)
-    #
-    # def measurement_exists(self, city: str, parameter: str, timestamp: datetime) -> bool:
-    #     exists = (
-    #         self.db.query(MeasurementDB)
-    #         .filter(
-    #             MeasurementDB.city == city,
-    #             MeasurementDB.parameter == parameter,
-    #             MeasurementDB.timestamp == timestamp
-    #         )
-    #         .first()
-    #     )
-    #     return exists is not None
+        return (
+            self.db.query(WeatherEntity)
+            .filter(WeatherEntity.city == city, WeatherEntity.time == timestamp)
+            .first()
+            is not None
+        )
