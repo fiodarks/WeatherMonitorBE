@@ -20,7 +20,8 @@ app.include_router(air_router, prefix="/api", tags=["Weather measurements"])
 
 from fastapi.middleware.cors import CORSMiddleware
 
-origins = ["http://localhost:5173"]
+origins = ["http://localhost:5173",
+           "https://weather-monitor-fe.vercel.app"]
 
 app.add_middleware(
     CORSMiddleware,
