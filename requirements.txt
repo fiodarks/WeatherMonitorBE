@@ -1,0 +1,9 @@
+starlette
+fastapi
+uvicorn
+pydantic
+pyyaml
+requests
+apscheduler
+sqlalchemy
+psycopg2-binary
