@@ -32,8 +32,10 @@ class SQLMeasurementRepository(WeatherMeasurementRepository):
         query = self.db.query(WeatherEntity)
 
         if start_date:
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
             query = query.filter(WeatherEntity.time >= start_date)
         if end_date:
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             query = query.filter(WeatherEntity.time <= end_date)
 
         # Sorting
