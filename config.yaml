@@ -1,0 +1,4 @@
+app:
+  name: "Weather Web App"
+  environment: "dev"
+  repository_type: "postgres"
