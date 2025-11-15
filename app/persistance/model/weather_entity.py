@@ -3,7 +3,10 @@ import os
 from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    print("DATABASE_URL is missing! Fallback to SQLite.")
+    SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
 connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
