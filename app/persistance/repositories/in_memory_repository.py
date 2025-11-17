@@ -9,6 +9,12 @@ from app.persistance.repositories.measurement_repository import WeatherMeasureme
 
 class InMemoryWeatherMeasurementRepository(WeatherMeasurementRepository):
 
+    def update(self, weather_id: int, updated: WeatherData) -> WeatherData:
+        pass
+
+    def delete(self, weather_id: int) -> None:
+        pass
+
     def __init__(self):
         self._data: list[WeatherData] = []
 

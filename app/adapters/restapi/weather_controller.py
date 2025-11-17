@@ -127,23 +127,28 @@ def update_measurement(
         if not existing:
             raise HTTPException(
                 status_code=404,
-                detail="Measurement with this ID does not exist"
+                detail="Measurement with this ID does not exist",
             )
 
         updated = repo.update(measurement_id, data)
+        if not updated:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update measurement",
+            )
 
-    except SQLAlchemyError:
+        return updated
+
+    except SQLAlchemyError as e:
         raise HTTPException(
             status_code=500,
-            detail="Database error occurred while updating measurement"
+            detail=f"Database error occurred while updating measurement: {str(e)}",
         )
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Unexpected error occurred while updating measurement"
+            detail=f"Unexpected error occurred while updating measurement: {str(e)}",
         )
-
-    return updated
 
 
 @router.delete("/measurements/{measurement_id}", status_code=204)
@@ -156,20 +161,25 @@ def delete_measurement(
         if not existing:
             raise HTTPException(
                 status_code=404,
-                detail="Measurement with this ID does not exist"
+                detail="Measurement with this ID does not exist",
             )
 
-        repo.delete(measurement_id)
+        deleted = repo.delete(measurement_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to delete measurement",
+            )
 
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         raise HTTPException(
             status_code=500,
-            detail="Database error occurred while deleting measurement"
+            detail=f"Database error occurred while deleting measurement: {str(e)}",
         )
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Unexpected error occurred while deleting measurement"
+            detail=f"Unexpected error occurred while deleting measurement: {str(e)}",
         )
 
     return Response(status_code=204)

@@ -59,3 +59,34 @@ class SQLMeasurementRepository(WeatherMeasurementRepository):
             .first()
             is not None
         )
+
+
+    def delete(self, weather_id: str) -> bool:
+        record = self.db.query(WeatherEntity).filter_by(id=weather_id).first()
+        if not record:
+            return False
+
+        self.db.delete(record)
+        self.db.commit()
+        return True
+
+    def update(self, weather_id: str, measurement: WeatherData) -> Optional[WeatherData]:
+        record = self.db.query(WeatherEntity).filter_by(id=weather_id).first()
+        if not record:
+            return None
+
+        # overwrite fields
+        record.temperature = measurement.temperature
+        record.temperature_unit = measurement.temperature_unit
+        record.rain = measurement.rain
+        record.rain_unit = measurement.rain_unit
+        record.surface_pressure = measurement.surface_pressure
+        record.surface_pressure_unit = measurement.surface_pressure_unit
+        record.wind_speed = measurement.wind_speed
+        record.wind_speed_unit = measurement.wind_speed_unit
+        record.time = measurement.time
+        record.city = measurement.city
+
+        self.db.commit()
+        self.db.refresh(record)
+        return to_weather_data(record)

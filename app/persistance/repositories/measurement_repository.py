@@ -27,3 +27,11 @@ class WeatherMeasurementRepository(ABC):
     @abstractmethod
     def measurement_exists(self, city: str, timestamp: datetime) -> bool:
         pass
+
+    @abstractmethod
+    def update(self, weather_id: int, updated: WeatherData) -> WeatherData:
+        pass
+
+    @abstractmethod
+    def delete(self, weather_id: int) -> None:
+        pass
