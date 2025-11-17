@@ -1,70 +1,175 @@
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status
+)
+from fastapi.responses import Response
+from typing import Optional, List
 from datetime import datetime, timezone
-from typing import List, Optional
-
-from fastapi import APIRouter, Depends, Response, Query, HTTPException
-from starlette import status
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.adapters.restapi.dependecies import get_measurement_repository
 from app.domain.model.weather_data import WeatherData
 from app.domain.weather_service import OpenMeteoWeatherService
 
-router = APIRouter()
 
-@router.get("/weather/measurements", response_model=WeatherData)
+router = APIRouter(prefix="/weather", tags=["Weather Measurements"])
+
+
+@router.get("/measurements", response_model=WeatherData)
 def get_air_quality(
     city: str = "Warsaw",
-    repo = Depends(get_measurement_repository)
+    repo=Depends(get_measurement_repository),
 ):
-    use_case = OpenMeteoWeatherService(measurement_repo=repo)
-    new_measurements = use_case.get_latest_measurement(city)
-    if not new_measurements:
+    try:
+        service = OpenMeteoWeatherService(measurement_repo=repo)
+        result = service.get_latest_measurement(city)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error while fetching latest measurement"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while fetching latest measurement"
+        )
+
+    if not result:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    return new_measurements
+    return result
 
-@router.post("/weather/measurements", response_model=WeatherData)
+
+@router.post("/measurements", response_model=WeatherData, status_code=201)
 def add_measurement(
-    city: str = Query(..., example="Warsaw"),
-    temperature: float = Query(..., example=12.4),
-    temperature_unit: str = Query(..., example="°C"),
-    is_day: bool = Query(..., example=True),
-    rain: float = Query(..., example=0.0),
-    rain_unit: str = Query(..., example="mm"),
-    surface_pressure: float = Query(..., example=998.2),
-    surface_pressure_unit: str = Query(..., example="hPa"),
-    wind_speed: float = Query(..., example=6.8),
-    wind_speed_unit: str = Query(..., example="km/h"),
-    repo = Depends(get_measurement_repository),
+    city: str = Query(...),
+    temperature: float = Query(...),
+    temperature_unit: str = Query(...),
+    is_day: bool = Query(...),
+    rain: float = Query(...),
+    rain_unit: str = Query(...),
+    surface_pressure: float = Query(...),
+    surface_pressure_unit: str = Query(...),
+    wind_speed: float = Query(...),
+    wind_speed_unit: str = Query(...),
+    repo=Depends(get_measurement_repository),
 ):
-    measurement = WeatherData(
-        city=city,
-        time=datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None),
-        temperature=temperature,
-        temperature_unit=temperature_unit,
-        is_day=is_day,
-        rain=rain,
-        rain_unit=rain_unit,
-        surface_pressure=surface_pressure,
-        surface_pressure_unit=surface_pressure_unit,
-        wind_speed=wind_speed,
-        wind_speed_unit=wind_speed_unit,
-    )
+    try:
+        measurement = WeatherData(
+            city=city,
+            time=datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None),
+            temperature=temperature,
+            temperature_unit=temperature_unit,
+            is_day=is_day,
+            rain=rain,
+            rain_unit=rain_unit,
+            surface_pressure=surface_pressure,
+            surface_pressure_unit=surface_pressure_unit,
+            wind_speed=wind_speed,
+            wind_speed_unit=wind_speed_unit,
+        )
 
-    saved = repo.add(measurement)
+        saved = repo.add(measurement)
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred while saving measurement"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error occurred while saving measurement"
+        )
+
     return saved
 
-@router.get("/weather/measurements/chart-data", response_model=List[WeatherData])
-def get_chart_data(
-    start_date: Optional[datetime] = Query(None, description="Filter start date (ISO)"),
-    end_date: Optional[datetime] = Query(None, description="Filter end date (ISO)"),
-    sort_by: List[str] = Query(["timestamp:asc"], description="Sorting fields"),
-    repo = Depends(get_measurement_repository)):
 
-    items, _ = repo.get_chart_data(
-        start_date=start_date,
-        end_date=end_date,
-        sort_by=sort_by,
-    )
+@router.get("/measurements/chart-data", response_model=List[WeatherData])
+def get_chart_data(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    sort_by: List[str] = Query(["timestamp:asc"]),
+    repo=Depends(get_measurement_repository),
+):
+    try:
+        items, _ = repo.get_chart_data(
+            start_date=start_date,
+            end_date=end_date,
+            sort_by=sort_by,
+        )
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred while fetching chart data"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while fetching chart data"
+        )
 
     return items
 
+
+@router.put("/measurements/{measurement_id}", response_model=WeatherData)
+def update_measurement(
+    measurement_id: int,
+    data: WeatherData,
+    repo=Depends(get_measurement_repository),
+):
+    try:
+        existing = repo.get_by_id(measurement_id)
+        if not existing:
+            raise HTTPException(
+                status_code=404,
+                detail="Measurement with this ID does not exist"
+            )
+
+        updated = repo.update(measurement_id, data)
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred while updating measurement"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error occurred while updating measurement"
+        )
+
+    return updated
+
+
+@router.delete("/measurements/{measurement_id}", status_code=204)
+def delete_measurement(
+    measurement_id: int,
+    repo=Depends(get_measurement_repository),
+):
+    try:
+        existing = repo.get_by_id(measurement_id)
+        if not existing:
+            raise HTTPException(
+                status_code=404,
+                detail="Measurement with this ID does not exist"
+            )
+
+        repo.delete(measurement_id)
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred while deleting measurement"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error occurred while deleting measurement"
+        )
+
+    return Response(status_code=204)
