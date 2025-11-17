@@ -1,3 +1,5 @@
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.domain.mapper import to_weather_entity, to_weather_data
 from app.domain.model.weather_data import WeatherData
 from app.persistance.model.weather_entity import WeatherEntity
@@ -71,22 +73,45 @@ class SQLMeasurementRepository(WeatherMeasurementRepository):
         return True
 
     def update(self, weather_id: str, measurement: WeatherData) -> Optional[WeatherData]:
-        record = self.db.query(WeatherEntity).filter_by(id=weather_id).first()
-        if not record:
+        try:
+            weather_id_int = int(weather_id)
+
+            record = self.db.query(WeatherEntity).filter_by(id=weather_id_int).first()
+            if not record:
+                print(f"Update failed: record with id {weather_id} not found")
+                return None
+
+            if isinstance(measurement.time, str):
+                record.time = datetime.fromisoformat(measurement.time)
+            else:
+                record.time = measurement.time
+
+            record.city = measurement.city
+            record.temperature = measurement.temperature
+            record.temperature_unit = measurement.temperature_unit
+            record.is_day = measurement.is_day
+            record.rain = measurement.rain
+            record.rain_unit = measurement.rain_unit
+            record.surface_pressure = measurement.surface_pressure
+            record.surface_pressure_unit = measurement.surface_pressure_unit
+            record.wind_speed = measurement.wind_speed
+            record.wind_speed_unit = measurement.wind_speed_unit
+
+            # Commit safely
+            self.db.commit()
+            self.db.refresh(record)
+
+            print(f"Record updated: {record.id}")
+            return to_weather_data(record)
+
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            print(f"DB error during update: {e}")
+            raise
+        except ValueError as e:
+            print(f"Invalid ID value: {e}")
             return None
-
-        # overwrite fields
-        record.temperature = measurement.temperature
-        record.temperature_unit = measurement.temperature_unit
-        record.rain = measurement.rain
-        record.rain_unit = measurement.rain_unit
-        record.surface_pressure = measurement.surface_pressure
-        record.surface_pressure_unit = measurement.surface_pressure_unit
-        record.wind_speed = measurement.wind_speed
-        record.wind_speed_unit = measurement.wind_speed_unit
-        record.time = measurement.time
-        record.city = measurement.city
-
-        self.db.commit()
-        self.db.refresh(record)
-        return to_weather_data(record)
+        except Exception as e:
+            self.db.rollback()
+            print(f"Unexpected error during update: {e}")
+            raise
