@@ -131,6 +131,7 @@ def update_measurement(
             )
 
         updated = repo.update(measurement_id, data)
+        print(updated)
         if not updated:
             raise HTTPException(
                 status_code=500,

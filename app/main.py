@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Weather measurement", lifespan=lifespan)
-app.include_router(air_router, prefix="/api", tags=["Weather measurements"])
+app.include_router(air_router)
 
 from fastapi.middleware.cors import CORSMiddleware
 

@@ -40,7 +40,6 @@ class SQLMeasurementRepository(WeatherMeasurementRepository):
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             query = query.filter(WeatherEntity.time <= end_date)
 
-        # Sorting
         if sort_by:
             for item in reversed(sort_by):
                 field, _, direction = item.partition(":")
@@ -76,41 +75,34 @@ class SQLMeasurementRepository(WeatherMeasurementRepository):
         try:
             weather_id_int = int(weather_id)
 
-            record = self.db.query(WeatherEntity).filter_by(id=weather_id_int).first()
+            # Fetch existing entity
+            record = (
+                self.db.query(WeatherEntity)
+                .filter(WeatherEntity.id == weather_id_int)
+                .first()
+            )
+
             if not record:
                 print(f"Update failed: record with id {weather_id} not found")
                 return None
 
-            if isinstance(measurement.time, str):
-                record.time = datetime.fromisoformat(measurement.time)
-            else:
-                record.time = measurement.time
-
             record.city = measurement.city
-            record.temperature = measurement.temperature
-            record.temperature_unit = measurement.temperature_unit
-            record.is_day = measurement.is_day
+            record.time = measurement.time
+            record.temperature_2m = measurement.temperature
+            record.temperature_2m_unit = measurement.temperature_unit
+            record.is_day = int(measurement.is_day)
             record.rain = measurement.rain
             record.rain_unit = measurement.rain_unit
             record.surface_pressure = measurement.surface_pressure
             record.surface_pressure_unit = measurement.surface_pressure_unit
-            record.wind_speed = measurement.wind_speed
-            record.wind_speed_unit = measurement.wind_speed_unit
+            record.wind_speed_10m = measurement.wind_speed
+            record.wind_speed_10m_unit = measurement.wind_speed_unit
 
-            # Commit safely
             self.db.commit()
             self.db.refresh(record)
 
-            print(f"Record updated: {record.id}")
             return to_weather_data(record)
 
-        except SQLAlchemyError as e:
-            self.db.rollback()
-            print(f"DB error during update: {e}")
-            raise
-        except ValueError as e:
-            print(f"Invalid ID value: {e}")
-            return None
         except Exception as e:
             self.db.rollback()
             print(f"Unexpected error during update: {e}")

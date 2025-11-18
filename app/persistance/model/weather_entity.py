@@ -30,5 +30,15 @@ class WeatherEntity(Base):
     wind_speed_10m = Column(Float)
     wind_speed_10m_unit = Column(String)
 
+    def __str__(self) -> str:
+        day_status = "Day" if self.is_day else "Night"
+        return (
+            f"WeatherData(id={self.id}, city={self.city}, time={self.time.isoformat()}, "
+            f"temperature={self.temperature}{self.temperature_unit}, "
+            f"{day_status}, rain={self.rain}{self.rain_unit}, "
+            f"surface_pressure={self.surface_pressure}{self.surface_pressure_unit}, "
+            f"wind_speed={self.wind_speed}{self.wind_speed_unit})"
+        )
+
 def init_db():
     Base.metadata.create_all(bind=engine)
