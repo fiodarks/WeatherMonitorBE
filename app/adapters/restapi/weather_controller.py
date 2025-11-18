@@ -15,7 +15,7 @@ from app.domain.model.weather_data import WeatherData
 from app.domain.weather_service import OpenMeteoWeatherService
 
 
-router = APIRouter(prefix="/weather", tags=["Weather Measurements"])
+router = APIRouter(prefix="/api/weather", tags=["Weather Measurements"])
 
 
 @router.get("/measurements", response_model=WeatherData)
